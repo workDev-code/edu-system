@@ -42,23 +42,12 @@ export default function Header({ collapsed, setCollapsed }: Props) {
     response: notificationResponse,
     pending,
     reFetch,
-  } = useGet<{
-    results: INotification[]
-    unread: number
-  }>(
+  } = useGet<{ results: INotification[]; unread: number }>(
     {
       url: notificationEndpoint.BASE,
-      config: {
-        params: {
-          limit: 20,
-          offset: 0,
-          status: option === 'UNREAD' ? false : undefined,
-        },
-      },
+      config: { params: { limit: 20, offset: 0, status: option === 'UNREAD' ? false : undefined } },
     },
-    {
-      deps: [option],
-    },
+    { deps: [option] },
   )
 
   const readNotificationMutation = useMutation()
@@ -72,92 +61,130 @@ export default function Header({ collapsed, setCollapsed }: Props) {
         url: `${notificationEndpoint.BASE}/${notification.id}`,
         method: 'put',
         body: formData,
-        config: {
-          headers: {
-            'Content-Type': 'multipart-formdata',
-          },
-        },
+        config: { headers: { 'Content-Type': 'multipart-formdata' } },
       })
-
       if (!error) reFetch()
     }
   }
 
+  // Role-based background color
+  const headerBg = user?.role === Role.STUDENT ? 'bg-blue-50' : user?.role === Role.TEACHER ? 'bg-green-50' : 'bg-white'
+
   return (
-    <header className="h-20 shrink-0 w-full bg-white flex items-center px-6 shadow-sm justify-between">
+    <header className={twMerge('h-20 w-full flex items-center justify-between px-6 shadow-sm', headerBg)}>
+      {/* Sidebar toggle */}
       <Button
         isIconOnly
-        className={`${collapsed ? '' : 'rotate-180'} duration-200`}
+        className={twMerge('duration-200', collapsed ? '' : 'rotate-180')}
         color="primary"
         size="sm"
         variant="light"
         onClick={() => setCollapsed((prev) => !prev)}
       >
-        <GoSidebarCollapse className="text-base text-black" />
+        <GoSidebarCollapse className="text-black text-lg" />
       </Button>
-      <div className="flex items-center gap-3">
+
+      <div className="flex items-center gap-4">
+        {/* Quick Links */}
+        {user?.role === Role.ADMIN && (
+          <div className="flex gap-2">
+            <Button size="sm" color="primary" onClick={() => router.push('/admin/classes/new')}>
+              + Add Class
+            </Button>
+            <Button size="sm" color="secondary" onClick={() => router.push('/admin/students/new')}>
+              + Add Student
+            </Button>
+          </div>
+        )}
+
         {[Role.STUDENT, Role.TEACHER].includes(user?.role as Role) && (
-          <Popover
-            placement="bottom-end"
-            style={{
-              zIndex: 40,
-            }}
-          >
+          <div className="flex gap-2 items-center">
+            {user?.role === Role.TEACHER && (
+              <Button size="sm" color="primary" onClick={() => router.push('/teacher/classes')}>
+                My Classes
+              </Button>
+            )}
+            {user?.role === Role.STUDENT && (
+              <Button size="sm" color="secondary" onClick={() => router.push('/student/schedule')}>
+                My Schedule
+              </Button>
+            )}
+            <Button size="sm" color="success" onClick={() => router.push('/notifications')}>
+              Notifications
+            </Button>
+          </div>
+        )}
+
+        {/* Notifications */}
+        {[Role.STUDENT, Role.TEACHER, Role.ADMIN].includes(user?.role as Role) && (
+          <Popover placement="bottom-end">
             <PopoverTrigger>
-              <Button isIconOnly size="md" variant="light" className="text-xl">
+              <Button
+                isIconOnly
+                variant="light"
+                className="text-xl"
+                title={`${notificationResponse?.unread || 0} unread`}
+              >
                 <Badge
                   content={notificationResponse?.unread}
                   isInvisible={!notificationResponse?.unread}
                   color="danger"
                   size="sm"
-                  className="font-semibold"
                 >
                   <IoNotificationsOutline />
                 </Badge>
               </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-[320px] bg-gray-100">
-              <div className="py-2 border-b w-full flex justify-between items-center">
-                <p className="text-lg font-semibold text-purple-900">Notification</p>
-                <Tabs
-                  size="sm"
-                  radius="full"
-                  variant="underlined"
-                  selectedKey={option}
-                  onSelectionChange={(k) => setOption(k as 'ALL' | 'UNREAD')}
-                >
-                  <Tab key="ALL" title="All" />
-                  <Tab key="UNREAD" title="Unread" />
-                </Tabs>
+            <PopoverContent className="w-[360px] max-h-[400px] overflow-auto bg-gray-100 p-2 rounded-md shadow-lg">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-lg font-semibold text-purple-900">Notifications</p>
+                <div className="flex items-center gap-2">
+                  <Tabs
+                    size="sm"
+                    variant="underlined"
+                    selectedKey={option}
+                    onSelectionChange={(k) => setOption(k as 'ALL' | 'UNREAD')}
+                  >
+                    <Tab key="ALL" title="All" />
+                    <Tab key="UNREAD" title="Unread" />
+                  </Tabs>
+                  <Button
+                    size="xs"
+                    variant="flat"
+                    onClick={() => {
+                      /* mark all read logic */
+                    }}
+                  >
+                    Mark all read
+                  </Button>
+                </div>
               </div>
-              <div className="w-full relative">
+
+              <div className="relative">
                 {pending && (
-                  <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[1px] z-10">
+                  <div className="absolute inset-0 flex items-center justify-center backdrop-blur-sm z-10">
                     <Spinner />
                   </div>
                 )}
-                {notificationResponse?.results.map((notification) => (
+                {notificationResponse?.results.map((n) => (
                   <Card
-                    key={notification.id}
+                    key={n.id}
                     isPressable
-                    className={twMerge('w-full shadow-none', notification.status ? 'bg-gray-100' : 'bg-white')}
-                    onClick={() => handleClickNotification(notification)}
+                    className={twMerge('mb-1 shadow-none', n.status ? 'bg-gray-100' : 'bg-white')}
+                    onClick={() => handleClickNotification(n)}
                   >
-                    <CardBody>
-                      <div className="flex gap-2">
-                        <Avatar
-                          src={notification.sender.avatar || undefined}
-                          showFallback
-                          name={notification.sender.full_name}
-                          className="shrink-0"
-                        />
-                        <div className="grow">
-                          <h3 className="line-clamp-1">{notification.title}</h3>
-                          <p className="text-[10px] text-right text-gray-500 font-semibold">
-                            {moment(notification.created_at).format('HH:mm DD/MM/yyyy')}
-                          </p>
-                        </div>
+                    <CardBody className="flex items-center gap-2">
+                      <Avatar
+                        src={n.sender.avatar ? `${API_URL}${n.sender.avatar}` : undefined}
+                        name={n.sender.full_name}
+                        showFallback
+                      />
+                      <div className="flex-1">
+                        <h3 className="line-clamp-1 font-medium">{n.title}</h3>
+                        <p className="text-[10px] text-gray-500 text-right">
+                          {moment(n.created_at).format('HH:mm DD/MM/yyyy')}
+                        </p>
                       </div>
                     </CardBody>
                   </Card>
@@ -166,32 +193,42 @@ export default function Header({ collapsed, setCollapsed }: Props) {
             </PopoverContent>
           </Popover>
         )}
+
+        {/* User Dropdown with Greeting */}
         <Dropdown>
           <DropdownTrigger>
-            <User
-              avatarProps={{
-                name: user?.full_name,
-                color: 'success',
-                src: `${API_URL}${user?.avatar}`,
-                showFallback: true,
-              }}
-              className="border rounded-full p-0.5 pr-4 cursor-pointer shadow"
-              description={user?.role}
-              name={user?.full_name}
-            />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 hidden sm:inline">
+                Hi, <b>{user?.full_name?.split(' ')[0]}</b>!
+              </span>
+              <User
+                avatarProps={{
+                  name: user?.full_name,
+                  color: 'success',
+                  src: `${API_URL}${user?.avatar}`,
+                  showFallback: true,
+                }}
+                className="border rounded-full p-0.5 cursor-pointer shadow"
+                description={user?.role}
+                name={user?.full_name}
+              />
+            </div>
           </DropdownTrigger>
           <DropdownMenu>
-            {[Role.STUDENT, Role.TEACHER].includes(user?.role as Role) &&
-              ((
-                <DropdownSection showDivider>
-                  <DropdownItem key={'profile'} onClick={() => router.push('/profile')}>
-                    Profile
-                  </DropdownItem>
-                </DropdownSection>
-              ) as any)}
-
+            {user?.role === Role.ADMIN && (
+              <DropdownSection showDivider>
+                <DropdownItem onClick={() => router.push('/admin/dashboard')}>Dashboard</DropdownItem>
+                <DropdownItem onClick={() => router.push('/admin/users')}>Manage Users</DropdownItem>
+                <DropdownItem onClick={() => router.push('/admin/classes')}>Manage Classes</DropdownItem>
+                <DropdownItem onClick={() => router.push('/admin/subjects')}>Manage Subjects</DropdownItem>
+              </DropdownSection>
+            )}
+            {[Role.TEACHER, Role.STUDENT].includes(user?.role as Role) && (
+              <DropdownSection showDivider>
+                <DropdownItem onClick={() => router.push('/profile')}>Profile</DropdownItem>
+              </DropdownSection>
+            )}
             <DropdownItem
-              key={'logout'}
               color="warning"
               onClick={() => {
                 dispatch(actionLogout())
@@ -203,6 +240,8 @@ export default function Header({ collapsed, setCollapsed }: Props) {
           </DropdownMenu>
         </Dropdown>
       </div>
+
+      {/* Notification Modal */}
       <ViewNotification
         isOpen={!!selectedNotification}
         onOpenChange={(isOpen) => !isOpen && setSelectedNotification(null)}

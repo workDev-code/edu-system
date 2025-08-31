@@ -4,11 +4,15 @@ import { store } from '@/redux'
 import { ACCESS_TOKEN, API_URL, REFRESH_TOKEN } from '@/config/constants'
 import { actionLogout } from '@/redux/slices/auth'
 import { authEndpoint } from '@/config/endpoints'
-
 import { getClientCookie, setClientCookie } from './clientCookies'
 
+// Tạo một instance của axios để dùng chung trong toàn bộ project
 const axiosInstance = axios.create({
+  // baseURL: URL gốc cho tất cả request.
+  // Khi gọi axiosInstance.get('/users'), thực chất sẽ là `${API_URL}/api/users`
   baseURL: `${API_URL}/api`,
+  // timeout: thời gian tối đa (ms) cho một request trước khi nó bị hủy.
+  // 60000ms = 60 giây
   timeout: 60000,
 })
 

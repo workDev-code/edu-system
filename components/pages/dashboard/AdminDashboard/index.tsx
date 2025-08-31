@@ -11,17 +11,26 @@ interface Statistic {
 }
 
 export default function AdminDashboard() {
-  const { response } = useGet<Statistic>({
-    url: statisticEndpoint.BASE,
-  })
+  // const { response } = useGet<Statistic>({
+  //   url: statisticEndpoint.BASE,
+  // })
+
+  // Nếu chưa có backend thì ta cho 1 response giả fallback
+  const fakeResponse: Statistic = {
+    total_students: 120,
+    total_teachers: 25,
+    total_users: 145,
+    total_classes: 12,
+    total_subjects: 8,
+  }
 
   return (
     <div className="mt-10">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Block label="Total students" value={response?.total_students} />
-        <Block label="Total teachers" value={response?.total_teachers} />
-        <Block label="Total classes" value={response?.total_classes} />
-        <Block label="Total subjects" value={response?.total_subjects} />
+        <Block label="Total students" value={fakeResponse?.total_students} />
+        <Block label="Total teachers" value={fakeResponse?.total_teachers} />
+        <Block label="Total classes" value={fakeResponse?.total_classes} />
+        <Block label="Total subjects" value={fakeResponse?.total_subjects} />
       </div>
     </div>
   )

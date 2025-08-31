@@ -9,9 +9,9 @@ import { Tab, Tabs } from '@nextui-org/tabs'
 import { RootState } from '@/redux'
 import { Role } from '@/helper/enums'
 import { adminNavs, studentNavs, teacherNavs } from '@/helper/datas'
-import logo from '@/public/images/logo.png'
-import logoMini from '@/public/images/logo-mini.png'
-
+import logo from '@/public/images/logo1.png'
+import logoMini from '@/public/images/logo1.png'
+import { motion } from 'framer-motion'
 interface Props {
   collapsed: boolean
 }
@@ -36,9 +36,15 @@ export default function SideBar({ collapsed }: Props) {
         width: collapsed ? 70 : 250,
       }}
     >
-      <div className="h-20 relative">
-        <Image src={collapsed ? logoMini : logo} alt="" fill className="object-cover object-left" />
+      <div className="h-20 flex items-center justify-center">
+        <Image
+          src={collapsed ? logoMini : logo}
+          alt="Logo"
+          height={80} // ~ h-20
+          className="object-contain"
+        />
       </div>
+
       <Tabs
         isVertical
         className="w-full overflow-x-hidden mt-5"
@@ -62,11 +68,14 @@ export default function SideBar({ collapsed }: Props) {
                 className={`flex items-center w-full duration-200 ${collapsed ? 'justify-center gap-0' : 'justify-start gap-2 '}`}
               >
                 <nav.icon className="text-lg shrink-0 duration-200" />{' '}
-                <span
-                  className={`overflow-hidden duration-200 ease-in-out block text-left ${collapsed ? 'w-0' : 'w-full'}`}
+                <motion.span
+                  initial={false}
+                  animate={collapsed ? { opacity: 0, maxWidth: 0 } : { opacity: 1, maxWidth: 200 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="block text-left overflow-hidden whitespace-nowrap text-blue-500"
                 >
                   {nav.label}
-                </span>
+                </motion.span>
               </div>
             }
           />

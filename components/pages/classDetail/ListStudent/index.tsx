@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
@@ -16,36 +18,74 @@ import { useGet } from '@/hooks/useGet'
 import { useMutation } from '@/hooks/useMutation'
 import { IClass, IUser } from '@/types'
 import SendNotification from '@/components/common/SendNotification'
+import { Role } from '@/helper/enums'
+
+const USE_MOCK = true // ⚡️ Chuyển = false để dùng API thật
 
 const cols: { key: string; label: string }[] = [
+  { key: 'no', label: 'No' },
+  { key: 'name', label: 'Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'code', label: 'Code' },
+  { key: 'class', label: 'Class' },
+  { key: 'action', label: '' },
+]
+
+// MOCK DATA
+const mockStudents: { user: IUser; class_instance: IClass }[] = [
   {
-    key: 'no',
-    label: 'No',
+    user: {
+      id: '1',
+      username: 'nguyenvana',
+      full_name: 'Nguyen Van A',
+      role: Role.STUDENT,
+      email: 'a@example.com',
+      code: 'SV001',
+      avatar: '',
+      gender: 'MALE',
+      date_of_birth: '2000-01-01',
+      date_joined: '2023-09-01',
+      phone_number: '0123456789',
+      address: 'Hanoi',
+    },
+    class_instance: {
+      id: '101',
+      name: 'Class 10A1',
+      key: '10A1',
+      year: 2023,
+      student_count: 40,
+      teacher: null,
+    },
   },
   {
-    key: 'name',
-    label: 'Name',
-  },
-  {
-    key: 'email',
-    label: 'Email',
-  },
-  {
-    key: 'code',
-    label: 'Code',
-  },
-  {
-    key: 'class',
-    label: 'Class',
-  },
-  {
-    key: 'action',
-    label: '',
+    user: {
+      id: '2',
+      username: 'tranthib',
+      full_name: 'Tran Thi B',
+      role: Role.STUDENT,
+      email: 'b@example.com',
+      code: 'SV002',
+      avatar: '',
+      gender: 'FEMALE',
+      date_of_birth: '2001-02-02',
+      date_joined: '2023-09-01',
+      phone_number: '0987654321',
+      address: 'HCM',
+    },
+    class_instance: {
+      id: '102',
+      name: 'Class 11B',
+      key: '11B',
+      year: 2023,
+      student_count: 35,
+      teacher: null,
+    },
   },
 ]
 
 export default function ListStudent() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = params?.id as string | undefined
   const searchParams = useSearchParams()
   const search = searchParams.get('search') || ''
   const [selectedStudent, setSelectedStudent] = useState<null | IUser>(null)
@@ -55,6 +95,7 @@ export default function ListStudent() {
   const searchDebounce = useDebounce(inputSearch)
   const router = useRouter()
 
+  // 🔹 API thật (chỉ chạy nếu USE_MOCK = false)
   const { response, pending } = useGet<{ count: number; results: { user: IUser; class_instance: IClass }[] }>(
     {
       url: userClassEndpoint.BASE,
@@ -67,30 +108,36 @@ export default function ListStudent() {
     },
     {
       deps: [search, id],
+      disabled: USE_MOCK, // ✅ Không gọi API nếu đang mock
     },
   )
+
+  // 🔹 Chọn dữ liệu hiển thị
+  const students = USE_MOCK ? mockStudents : response?.results || []
+  const loading = USE_MOCK ? false : pending
 
   const sendNotificationMutation = useMutation()
 
   useEffect(() => {
-    router.replace(updateSearchParams({ search: searchDebounce }))
+    if (!USE_MOCK) {
+      router.replace(updateSearchParams({ search: searchDebounce }))
+    }
   }, [searchDebounce])
 
   const handleSendNotification = async ({ title, description }: { title: string; description: string }) => {
     const formdata = new FormData()
     formdata.append('title', title)
     formdata.append('detail', description)
-    if (selectedStudents.length) selectedStudents.forEach((id) => formdata.append('student_ids', id))
-    else formdata.append('all_students', 'true')
+    if (selectedStudents.length) {
+      selectedStudents.forEach((id) => formdata.append('student_ids', id))
+    } else {
+      formdata.append('all_students', 'true')
+    }
+
     const { error } = await sendNotificationMutation.mutation({
       url: notificationEndpoint.BASE,
       method: 'post',
       body: formdata,
-      config: {
-        headers: {
-          'Content-Type': 'multipart-formdata',
-        },
-      },
     })
 
     if (error) {
@@ -104,6 +151,7 @@ export default function ListStudent() {
 
   return (
     <div className="mt-10">
+      {/* 🔍 Search + Notification */}
       <div className="grid grid-cols-4 gap-5">
         <Input
           color="primary"
@@ -118,6 +166,8 @@ export default function ListStudent() {
           <MdOutlineNotificationsActive />
         </Button>
       </div>
+
+      {/* 📝 Table */}
       <Table
         isStriped
         aria-label="Student-list"
@@ -125,7 +175,7 @@ export default function ListStudent() {
         className="mt-4"
         selectedKeys={selectedStudents}
         onSelectionChange={(keys) => {
-          if (keys === 'all') setSelectedStudents((response?.results || []).map((student) => student.user.id))
+          if (keys === 'all') setSelectedStudents(students.map((student) => student.user.id))
           else setSelectedStudents(Array.from(keys) as string[])
         }}
       >
@@ -136,8 +186,8 @@ export default function ListStudent() {
             </TableColumn>
           )}
         </TableHeader>
-        <TableBody loadingContent={<Spinner />} loadingState="idle" isLoading={pending}>
-          {(response?.results || []).map((student, index) => (
+        <TableBody loadingContent={<Spinner />} isLoading={loading}>
+          {students.map((student, index) => (
             <TableRow key={student.user.id}>
               <TableCell>{index + 1}</TableCell>
               <TableCell>{student.user.full_name}</TableCell>
@@ -155,12 +205,9 @@ export default function ListStudent() {
           ))}
         </TableBody>
       </Table>
-      <Modal
-        isOpen={!!selectedStudent}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) setSelectedStudent(null)
-        }}
-      >
+
+      {/* 👤 Modal Info */}
+      <Modal isOpen={!!selectedStudent} onOpenChange={(isOpen) => !isOpen && setSelectedStudent(null)}>
         <ModalContent>
           <ModalBody>
             <Avatar
@@ -169,7 +216,6 @@ export default function ListStudent() {
               className="mx-auto w-40 aspect-square h-40 text-4xl"
               showFallback
             />
-
             <div className="mt-4">
               <p className="text-4xl font-semibold text-center">{selectedStudent?.full_name}</p>
               <p className="mt-2">Email: {selectedStudent?.email}</p>
@@ -183,6 +229,7 @@ export default function ListStudent() {
         </ModalContent>
       </Modal>
 
+      {/* 🔔 Send Notification */}
       <SendNotification
         isOpen={isOpen}
         loading={sendNotificationMutation.pending}
